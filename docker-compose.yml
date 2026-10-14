@@ -60,6 +60,13 @@ services:
     image: ghcr.io/codeveira/veiraforge:${IMAGE_TAG:-latest}
     build: ../veiraforge
     restart: unless-stopped
+    # Without this, containers inherit the host's own search domain (from
+    # /etc/resolv.conf) into theirs -- harmless for most images, but it
+    # combines with options ndots:0 to make this binary's pure-Go DNS
+    # resolver get "server misbehaving" back from Docker's embedded DNS
+    # when looking up plain service names like "postgres" (a known Go/
+    # Docker interaction issue, independent of this host's actual domain).
+    dns_search: []
     environment:
       VEIRAFORGE_LISTEN_ADDR: ${VEIRAFORGE_LISTEN_ADDR:-0.0.0.0:8400}
       VEIRAFORGE_GITHUB_WEBHOOK_SECRET: ${VEIRAFORGE_GITHUB_WEBHOOK_SECRET:-}
@@ -90,6 +97,7 @@ services:
     image: ghcr.io/codeveira/veiraforge:${IMAGE_TAG:-latest}
     build: ../veiraforge
     restart: unless-stopped
+    dns_search: []
     command: ["worker", "run", "-poll-interval", "${VEIRAFORGE_WORKER_POLL_INTERVAL:-5s}",
               "-heartbeat-file", "/tmp/veiraforge-worker-heartbeat"]
     environment:
