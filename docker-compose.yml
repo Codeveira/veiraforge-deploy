@@ -1,0 +1,107 @@
+# VeiraForge — early Compose file.
+#
+# The Project/Run store is Postgres-only (../veiraforge/store/db.go) -- this
+# bundles a postgres service for a self-contained `docker compose up`; a
+# deployment that already runs Postgres HA elsewhere just points
+# VEIRAFORGE_DATABASE_URL at it and drops the postgres/postgres-data block
+# below.
+#
+# Two veiraforge processes, same image: `server serve` answers webhooks and
+# the HTTP API; `worker run -poll-interval` is the standing process that
+# actually consumes the Run queue those webhooks fill (cli/worker.go) --
+# split out as its own service/container, not folded into `server serve`,
+# so either one can be scaled or restarted independently (and so a runner
+# crash mid-pipeline can't take the webhook receiver down with it).
+# VEIRAFORGE_MASTER_KEY is optional on both (OPEN-QUESTIONS.md #6): unset
+# keeps Project.DeployToken as plaintext, same as before that flag existed.
+#
+# `server serve`'s port (8400) now also serves the operator dashboard (../veiraforge/ui,
+# OPEN-QUESTIONS.md #8) alongside the webhook endpoints, automatically, since
+# VEIRAFORGE_DATABASE_URL is already set below -- nothing extra to enable. There is no
+# self-service signup: create the first login from the host after `docker compose up`, e.g.
+#   docker compose exec veiraforge /veiraforge user create -email you@example.com -password '...' -database-url "$VEIRAFORGE_DATABASE_URL"
+#
+# Every secret below (POSTGRES_PASSWORD, VEIRAFORGE_MASTER_KEY, the three
+# *_WEBHOOK_SECRET vars) is read as ${VAR}, which Compose fills from the
+# shell environment or from a .env file in this directory -- so sourcing
+# them from Veira Seal needs no change here, just populating that .env
+# before `docker compose up`: see ./pull-secrets.sh, or run
+# `veira pull PROJECT/ENV -format env -o .env` directly (OPEN-QUESTIONS.md
+# #6, IDEAS.md §5f). This is one option, never required: hand-write .env,
+# or export the variables another way, and Veira Seal is never involved.
+#
+# `Project.DeployToken` (`project create -clone-url`/`project set-token
+# -token`) isn't a container env var, so it works the same way for any
+# secret source: fetch the value yourself and pass it as the flag, e.g.
+#   docker compose exec veiraforge /veiraforge project set-token -id ID \
+#     -token "$(veira get PROJECT/ENV deploy-token-myrepo)" -database-url "$VEIRAFORGE_DATABASE_URL"
+# `user create -password` works the same way, if the login password itself
+# should also come from Veira Seal rather than being typed inline.
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: veiraforge
+      POSTGRES_USER: veiraforge
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD}
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U veiraforge -d veiraforge"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  veiraforge:
+    image: ghcr.io/codeveira/veiraforge:${IMAGE_TAG:-latest}
+    build: ../veiraforge
+    restart: unless-stopped
+    environment:
+      VEIRAFORGE_LISTEN_ADDR: ${VEIRAFORGE_LISTEN_ADDR:-0.0.0.0:8400}
+      VEIRAFORGE_GITHUB_WEBHOOK_SECRET: ${VEIRAFORGE_GITHUB_WEBHOOK_SECRET:-}
+      VEIRAFORGE_GITLAB_WEBHOOK_SECRET: ${VEIRAFORGE_GITLAB_WEBHOOK_SECRET:-}
+      VEIRAFORGE_GITEA_WEBHOOK_SECRET: ${VEIRAFORGE_GITEA_WEBHOOK_SECRET:-}
+      VEIRAFORGE_DATABASE_URL: postgres://veiraforge:${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD}@postgres:5432/veiraforge?sslmode=disable
+      # Needed here too, not just on `worker`: GetProject/GetProjectByRepo
+      # (store/project.go) always try to decrypt DeployToken on read, so
+      # recordPush's webhook-triggered lookup would error on any project
+      # with an encrypted token if this service didn't have the same key.
+      VEIRAFORGE_MASTER_KEY: ${VEIRAFORGE_MASTER_KEY:-}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    ports:
+      - "127.0.0.1:8400:8400"
+    # The image already declares its own HEALTHCHECK (CMD /veiraforge
+    # healthcheck) against http://127.0.0.1:8400/health; nothing to
+    # override here.
+
+  worker:
+    image: ghcr.io/codeveira/veiraforge:${IMAGE_TAG:-latest}
+    build: ../veiraforge
+    restart: unless-stopped
+    command: ["worker", "run", "-poll-interval", "${VEIRAFORGE_WORKER_POLL_INTERVAL:-5s}",
+              "-heartbeat-file", "/tmp/veiraforge-worker-heartbeat"]
+    environment:
+      VEIRAFORGE_DATABASE_URL: postgres://veiraforge:${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD}@postgres:5432/veiraforge?sslmode=disable
+      VEIRAFORGE_MASTER_KEY: ${VEIRAFORGE_MASTER_KEY:-}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    # The image's baked-in HEALTHCHECK (CMD /veiraforge healthcheck) probes
+    # http://127.0.0.1:8400/health, which only `server serve` listens on, so
+    # it's overridden here with the -worker-heartbeat variant instead
+    # (IDEAS.md §5d): `worker run` above touches
+    # /tmp/veiraforge-worker-heartbeat every few seconds for as long as its
+    # poll loop is alive, including mid-run, so this only fails on a
+    # genuinely stuck or dead process, not a merely busy one.
+    healthcheck:
+      test: ["CMD", "/veiraforge", "healthcheck", "-worker-heartbeat", "/tmp/veiraforge-worker-heartbeat", "-max-age", "30s"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  postgres-data:
