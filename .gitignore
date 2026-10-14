@@ -1,0 +1,5 @@
+# Real secrets/config — keep .env.example tracked, never the real one
+.env
+
+# Backup snapshots — timestamped dumps, not meant to be committed
+/backup/
