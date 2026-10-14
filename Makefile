@@ -1,4 +1,4 @@
-.PHONY: help build pull up down restart ps logs deploy backup clean config psql user-create project-create
+.PHONY: help build pull up down restart ps logs deploy upgrade backup clean config psql user-create project-create
 
 COMPOSE := docker compose
 SERVICE ?= veiraforge
@@ -32,6 +32,8 @@ logs: ## Tail logs; SERVICE=worker make logs for one service, default is all
 deploy: ## Rebuild veiraforge/worker from source and recreate only what changed
 	$(MAKE) build
 	$(COMPOSE) up -d --no-deps veiraforge worker
+
+upgrade: deploy ## Alias for deploy (kept for anyone used to `make upgrade` from the other repos)
 
 config: ## Validate docker-compose.yml and the resolved .env substitutions, without starting anything
 	$(COMPOSE) config -q
