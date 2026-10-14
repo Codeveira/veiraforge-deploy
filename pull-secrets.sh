@@ -1,8 +1,8 @@
 #!/bin/sh
 # Pulls every secret this compose file reads via ${VAR} (POSTGRES_PASSWORD,
-# VEIRAFORGE_MASTER_KEY, VEIRAFORGE_GITHUB_WEBHOOK_SECRET,
-# VEIRAFORGE_GITLAB_WEBHOOK_SECRET, VEIRAFORGE_GITEA_WEBHOOK_SECRET) out of a
-# Veira Seal environment into ./.env, which `docker compose up` loads
+# VEIRAFORGE_MASTER_KEY, and the per-platform *_WEBHOOK_SECRET vars -- GITHUB,
+# GITLAB, GITEA, FORGEJO, BITBUCKET, BITBUCKET_SERVER, AZURE, GERRIT, SVN) out
+# of a Veira Seal environment into ./.env, which `docker compose up` loads
 # automatically from this directory -- no docker-compose.yml change needed,
 # since it already reads these as ${VAR:-...}/${VAR:?...} rather than
 # hardcoding them (OPEN-QUESTIONS.md #6, IDEAS.md §5f).
