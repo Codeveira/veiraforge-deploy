@@ -84,6 +84,7 @@ services:
       # recordPush's webhook-triggered lookup would error on any project
       # with an encrypted token if this service didn't have the same key.
       VEIRAFORGE_MASTER_KEY: ${VEIRAFORGE_MASTER_KEY:-}
+      VEIRAFORGE_PUBLIC_BASE_URL: ${VEIRAFORGE_PUBLIC_BASE_URL:-}
     depends_on:
       postgres:
         condition: service_healthy
@@ -94,8 +95,12 @@ services:
     # override here.
 
   worker:
-    image: ghcr.io/codeveira/veiraforge:${IMAGE_TAG:-latest}
-    build: ../veiraforge
+    # The worker image, not the server one: pipeline steps run under `sh`
+    # and need git/curl, which the distroless server image doesn't have.
+    image: ghcr.io/codeveira/veiraforge-worker:${IMAGE_TAG:-latest}
+    build:
+      context: ../veiraforge
+      target: worker
     restart: unless-stopped
     dns_search: []
     command: ["worker", "run", "-poll-interval", "${VEIRAFORGE_WORKER_POLL_INTERVAL:-5s}",
@@ -103,6 +108,9 @@ services:
     environment:
       VEIRAFORGE_DATABASE_URL: postgres://veiraforge:${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD}@postgres:5432/veiraforge?sslmode=disable
       VEIRAFORGE_MASTER_KEY: ${VEIRAFORGE_MASTER_KEY:-}
+      # Links Codeveira and commit-status reports back to the run page; the
+      # same value the server gets.
+      VEIRAFORGE_PUBLIC_BASE_URL: ${VEIRAFORGE_PUBLIC_BASE_URL:-}
     depends_on:
       postgres:
         condition: service_healthy
