@@ -1,0 +1,31 @@
+# Opt-in overlay: run pipeline steps in their own container images
+# (`image:` in .veiraforge.yml) instead of directly in the worker container.
+# Turn it on in .env, so every `make` target picks it up:
+#
+#   COMPOSE_FILE=docker-compose.yml:docker-compose.containers.yml
+#   DOCKER_GID=<getent group docker | cut -d: -f3>
+#
+# and create the work directory, owned by the worker's user (uid 65532):
+#
+#   sudo install -d -o 65532 -g 65532 /var/lib/veiraforge/work
+#
+# WARNING: this gives the worker the host's Docker socket, which is root on
+# the host. Steps themselves never get the socket (only the run's checkout
+# is mounted into their containers), but anyone who takes over the worker
+# process does. Use it on a host dedicated to CI, or point DOCKER_HOST at a
+# rootless daemon instead of mounting the socket.
+services:
+  worker:
+    environment:
+      VEIRAFORGE_WORKER_CONTAINER_RUNTIME: docker
+      # Image for steps whose pipeline names none; empty runs those
+      # directly in the worker as before.
+      VEIRAFORGE_WORKER_DEFAULT_IMAGE: ${VEIRAFORGE_WORKER_DEFAULT_IMAGE:-}
+      # The daemon resolves bind mounts on the host, so each run's checkout
+      # must live at the same path inside the worker and on the host.
+      VEIRAFORGE_WORKER_WORK_DIR: ${VEIRAFORGE_WORKER_WORK_DIR:-/var/lib/veiraforge/work}
+    group_add:
+      - "${DOCKER_GID:?set DOCKER_GID to the host's docker group id: getent group docker | cut -d: -f3}"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - ${VEIRAFORGE_WORKER_WORK_DIR:-/var/lib/veiraforge/work}:${VEIRAFORGE_WORKER_WORK_DIR:-/var/lib/veiraforge/work}
