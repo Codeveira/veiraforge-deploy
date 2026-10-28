@@ -115,6 +115,11 @@ services:
       VEIRAFORGE_PUBLIC_BASE_URL: ${VEIRAFORGE_PUBLIC_BASE_URL:-}
       VEIRAFORGE_WORKER_RUN_TIMEOUT: ${VEIRAFORGE_WORKER_RUN_TIMEOUT:-1h}
       VEIRAFORGE_WORKER_ARTIFACT_MAX_MB: ${VEIRAFORGE_WORKER_ARTIFACT_MAX_MB:-100}
+      # Pipelines' `cache:` directories, kept in the worker-cache volume.
+      VEIRAFORGE_WORKER_CACHE_DIR: /home/nonroot/.cache/veiraforge
+      VEIRAFORGE_WORKER_CACHE_MAX_MB: ${VEIRAFORGE_WORKER_CACHE_MAX_MB:-1024}
+    volumes:
+      - worker-cache:/home/nonroot/.cache/veiraforge
     depends_on:
       postgres:
         condition: service_healthy
@@ -133,3 +138,4 @@ services:
 
 volumes:
   postgres-data:
+  worker-cache:
