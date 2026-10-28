@@ -111,6 +111,7 @@ services:
       # Links Codeveira and commit-status reports back to the run page; the
       # same value the server gets.
       VEIRAFORGE_PUBLIC_BASE_URL: ${VEIRAFORGE_PUBLIC_BASE_URL:-}
+      VEIRAFORGE_WORKER_RUN_TIMEOUT: ${VEIRAFORGE_WORKER_RUN_TIMEOUT:-1h}
     depends_on:
       postgres:
         condition: service_healthy
