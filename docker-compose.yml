@@ -85,6 +85,7 @@ services:
       # with an encrypted token if this service didn't have the same key.
       VEIRAFORGE_MASTER_KEY: ${VEIRAFORGE_MASTER_KEY:-}
       VEIRAFORGE_PUBLIC_BASE_URL: ${VEIRAFORGE_PUBLIC_BASE_URL:-}
+      VEIRAFORGE_AUTO_REGISTER: ${VEIRAFORGE_AUTO_REGISTER:-}
     depends_on:
       postgres:
         condition: service_healthy
