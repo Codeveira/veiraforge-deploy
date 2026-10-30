@@ -120,6 +120,7 @@ services:
       # Pipelines' `cache:` directories, kept in the worker-cache volume.
       VEIRAFORGE_WORKER_CACHE_DIR: /home/nonroot/.cache/veiraforge
       VEIRAFORGE_WORKER_CACHE_MAX_MB: ${VEIRAFORGE_WORKER_CACHE_MAX_MB:-1024}
+      VEIRAFORGE_WORKER_CACHE_TOTAL_MAX_MB: ${VEIRAFORGE_WORKER_CACHE_TOTAL_MAX_MB:-10240}
       VEIRAFORGE_WORKER_LABELS: ${VEIRAFORGE_WORKER_LABELS:-}
     volumes:
       - worker-cache:/home/nonroot/.cache/veiraforge
