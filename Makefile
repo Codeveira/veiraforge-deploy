@@ -1,4 +1,4 @@
-.PHONY: help build pull up down restart ps logs deploy upgrade backup clean config psql user-create project-create
+.PHONY: help build pull up up-release deploy-release down restart ps logs deploy upgrade backup clean config psql user-create project-create
 
 COMPOSE := docker compose
 SERVICE ?= veiraforge
@@ -16,6 +16,14 @@ pull: ## Pull the base images this stack doesn't build itself (postgres only)
 up: ## Start the stack, building veiraforge/worker from source first (never a stale/absent ghcr.io pull)
 	$(MAKE) build
 	$(COMPOSE) up -d
+
+up-release: ## Start the stack from the images GitHub publishes to ghcr.io (IMAGE_TAG in .env), building nothing
+	$(COMPOSE) pull veiraforge worker postgres
+	$(COMPOSE) up -d --no-build
+
+deploy-release: ## Move to the published images of IMAGE_TAG, recreating only veiraforge/worker
+	$(COMPOSE) pull veiraforge worker
+	$(COMPOSE) up -d --no-build --no-deps veiraforge worker
 
 down: ## Stop the stack
 	$(COMPOSE) down
