@@ -1,4 +1,4 @@
-.PHONY: help build pull up up-release deploy-release down restart ps logs deploy upgrade backup clean config psql user-create project-create
+.PHONY: help doctor build pull up up-release deploy-release down restart ps logs deploy upgrade backup clean config psql user-create project-create
 
 COMPOSE := docker compose
 SERVICE ?= veiraforge
@@ -6,6 +6,9 @@ BACKUP_DIR ?= ./backup
 
 help: ## Show this help
 	@grep -E '^[a-zA-Z0-9_-]+:.*## ' $(MAKEFILE_LIST) | sed 's/:.*## /\t/' | sort
+
+doctor: ## Check .env and this host before starting, and say what's wrong (changes nothing)
+	@./doctor.sh
 
 build: ## Build the veiraforge/worker images from ../veiraforge (does not touch postgres)
 	$(COMPOSE) build veiraforge worker
